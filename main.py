@@ -24,12 +24,8 @@ HTML_CONTENT = """
     <style>
         :root { --neon: #008f11; --lab-white: #ffffff; }
         body { background: var(--lab-white); color: #1a1a1a; font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
-        
-        /* THE HACKER LAB THEME */
         #hackerCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.15; }
         #canvas3d { position: absolute; top: 0; left: 0; z-index: 5; pointer-events: none; }
-        
-        /* HUD POPUP */
         .hud-popup { 
             position: absolute; top: 10%; 
             background: rgba(255, 255, 255, 0.8); 
@@ -45,11 +41,9 @@ HTML_CONTENT = """
 <body>
     <canvas id="hackerCanvas"></canvas>
     <canvas id="canvas3d"></canvas>
-    
     <div id="popup" class="hud-popup">
         <div class="hud-content" id="statusText">CLICK TO SYNC NEURAL LINK</div>
     </div>
-
     <div class="version">BUTTER_OS_v5.5_LAB_STARK_VISION</div>
 
     <script>
@@ -57,7 +51,7 @@ HTML_CONTENT = """
         const synth = window.speechSynthesis;
         let femaleVoice = null;
 
-        // --- THEME: GREEN HEX ON WHITE ---
+        // --- THEME & 3D ---
         const hCanvas = document.getElementById('hackerCanvas');
         const hCtx = hCanvas.getContext('2d');
         let drops = [];
@@ -77,7 +71,6 @@ HTML_CONTENT = """
         }
         initHacker(); setInterval(drawHacker, 40);
 
-        // --- CORE: 3D SPHERE ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('canvas3d'), alpha:true, antialias:true});
@@ -87,7 +80,12 @@ HTML_CONTENT = """
         function animate() { requestAnimationFrame(animate); sphere.rotation.y += 0.005; renderer.render(scene, camera); }
         animate();
 
-        // --- SPEECH & WAKE WORD ---
+        // --- RECOGNITION GLOBAL ---
+        const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        let recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
         function loadVoice() {
             const v = synth.getVoices();
             femaleVoice = v.find(v => v.name.includes('Neural') && v.name.includes('Female')) || v[0];
@@ -97,56 +95,60 @@ HTML_CONTENT = """
         async function speak(text, callback) {
             synth.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.voice = femaleVoice; u.pitch = 1.1;
+            u.voice = femaleVoice;
             u.onstart = () => { statusText.innerText = "BUTTER_TRANSMITTING..."; };
-            u.onend = () => { if(callback) callback(); startWakeWord(); };
+            u.onend = () => { 
+                if(callback) {
+                    setTimeout(callback, 500); // Give the mic a break before restarting
+                } else {
+                    startWakeWord(); 
+                }
+            };
             synth.speak(u);
         }
 
         function startWakeWord() {
-            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-            const rec = new SpeechRecognition();
-            rec.continuous = false;
-            rec.onstart = () => { statusText.innerText = 'SAY "BUTTER"'; };
-            rec.onresult = async (e) => {
+            recognition.onresult = (e) => {
                 const q = e.results[0][0].transcript.toLowerCase();
                 if(q.includes("butter")) {
-                    speak("I'm here, Hiccup. What do you need?", startMainListener);
-                } else { rec.start(); }
+                    recognition.stop();
+                    speak("I'm here, Hiccup.", startMainListener);
+                }
             };
-            rec.onerror = () => { rec.start(); };
-            rec.start();
+            recognition.onend = () => { if(statusText.innerText === 'SAY "BUTTER"') recognition.start(); };
+            statusText.innerText = 'SAY "BUTTER"';
+            try { recognition.start(); } catch(e) {}
         }
 
         function startMainListener() {
-            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-            const rec = new SpeechRecognition();
-            rec.onresult = async (e) => {
+            recognition.onresult = async (e) => {
                 const query = e.results[0][0].transcript;
+                recognition.stop();
                 
                 if(query.toLowerCase().includes("observe my hand")) {
                     await fetch('/set_vision?state=on');
-                    speak("Vision engaged. I am watching your hand now.");
+                    speak("Vision engaged. Standing by.");
                     return;
                 }
                 if(query.toLowerCase().includes("task completed")) {
                     await fetch('/set_vision?state=off');
-                    speak("Vision link released. Great job today.");
+                    speak("Vision released.");
                     return;
                 }
 
-                statusText.innerText = "THINKING...";
+                statusText.innerText = "SYNCING WITH CORE...";
                 const res = await fetch(`/ask?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 speak(data.reply);
             };
-            rec.start();
+            statusText.innerText = "READY FOR COMMAND";
+            recognition.start();
         }
 
         window.onclick = () => { 
             if(statusText.innerText.includes("CLICK")) {
                 loadVoice();
-                speak("Butter v5.5 Lab Edition Online. Wake-word monitoring active.");
+                speak("Butter v5.5 Lab Edition Online.");
             }
         };
     </script>
@@ -170,12 +172,9 @@ def get_vision():
 
 @app.get("/ask")
 async def ask(query: str):
-    try:
-        prompt = "You are Butter v5.5. You are an expert medical partner for Prawin Raja (Hiccup). Answer shortly: "
-        response = model.generate_content(f"{prompt} {query}")
-        return {"reply": response.text}
-    except:
-        return {"reply": "Link failure, Hiccup."}
+    prompt = "You are Butter v5.5. Expert medical assistant for Hiccup. Be concise: "
+    response = model.generate_content(f"{prompt} {query}")
+    return {"reply": response.text}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
