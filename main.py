@@ -12,7 +12,7 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
 
 # Using the updated model name to fix the 404 error
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 HTML_CONTENT = """
 <!DOCTYPE html>
