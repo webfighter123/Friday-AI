@@ -6,10 +6,11 @@ from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION (2026 STABLE) ---
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY.strip())
+    # Using the highest-speed preview model for 2026
     model = genai.GenerativeModel('gemini-3-flash-preview')
 
 HTML_CONTENT = """
@@ -18,33 +19,56 @@ HTML_CONTENT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BUTTER AI | NEURAL LINK</title>
+    <title>BUTTER | APEX</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { background: #ffffff; color: #1a1a1a; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
-        #hackerCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; opacity: 0.1; }
+        :root { --neon: #00ff41; --bg: #050505; }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
+        
+        /* HACKER BACKGROUND */
+        #hackerCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.2; }
         #canvas3d { position: absolute; top: 0; left: 0; z-index: 5; pointer-events: none; }
-        .hud { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; z-index: 10; }
-        #status { margin-top: 20px; font-size: 0.7rem; letter-spacing: 5px; color: #0077ff; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
-        #mic-btn { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #00d4ff; background: #fff; color: #00d4ff; font-size: 30px; cursor: pointer; z-index: 30; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); margin-bottom: 50px; }
-        #mic-btn.active { background: #00d4ff; color: #fff; box-shadow: 0 0 50px rgba(0, 212, 255, 0.5); transform: scale(1.1); }
-        #waveCanvas { position: absolute; width: 100%; height: 200px; display: none; z-index: 11; opacity: 0.6; pointer-events: none; }
+        
+        /* FLOATING HUD POPUP */
+        .hud-popup { 
+            position: absolute; top: 20%; 
+            background: rgba(255, 255, 255, 0.05); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            padding: 15px 30px; border-radius: 15px;
+            display: none; z-index: 100;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
+            transition: 0.3s;
+        }
+
+        .hud-content { font-family: 'Courier New', monospace; font-size: 0.9rem; color: var(--neon); letter-spacing: 2px; }
+
+        /* CONTROL BUTTON */
+        #mic-btn { 
+            position: absolute; bottom: 50px;
+            width: 80px; height: 80px; border-radius: 50%; 
+            border: 2px solid var(--neon); background: transparent; 
+            color: var(--neon); font-size: 30px; cursor: pointer; 
+            z-index: 200; transition: 0.4s;
+        }
+        #mic-btn.active { background: var(--neon); color: #000; box-shadow: 0 0 50px var(--neon); }
+
+        #waveCanvas { position: absolute; bottom: 150px; width: 100%; height: 100px; display: none; z-index: 10; pointer-events: none; }
     </style>
 </head>
 <body>
     <canvas id="hackerCanvas"></canvas>
     <canvas id="canvas3d"></canvas>
-    <div style="position:absolute; top:20px; letter-spacing:8px; font-size:0.6rem; color:#ccc; z-index:20;">NEURAL_STABILITY: MAX</div>
     
-    <div class="hud">
-        <canvas id="waveCanvas"></canvas>
-        <div id="status">NEURAL_IDLE</div>
+    <div id="statusPopup" class="hud-popup">
+        <div class="hud-content" id="popupText">INITIALIZING...</div>
     </div>
 
+    <canvas id="waveCanvas"></canvas>
     <button id="mic-btn" onclick="toggleSystem()">⚡</button>
 
     <script>
-        // --- MATRIX BACKGROUND ---
+        // --- HEX HACKER RAIN ---
         const hCanvas = document.getElementById('hackerCanvas');
         const hCtx = hCanvas.getContext('2d');
         let drops = [];
@@ -53,69 +77,74 @@ HTML_CONTENT = """
             for(let i=0; i<Math.floor(hCanvas.width/20); i++) drops[i] = 1;
         }
         function drawHacker() {
-            hCtx.fillStyle = "rgba(255, 255, 255, 0.05)"; hCtx.fillRect(0,0,hCanvas.width,hCanvas.height);
-            hCtx.fillStyle = "#d0d0d0"; hCtx.font = "15px monospace";
+            hCtx.fillStyle = "rgba(5, 5, 5, 0.1)"; hCtx.fillRect(0,0,hCanvas.width,hCanvas.height);
+            hCtx.fillStyle = "#00ff41"; hCtx.font = "14px monospace";
             for(let i=0; i<drops.length; i++) {
-                hCtx.fillText(String.fromCharCode(Math.random()*128), i*20, drops[i]*20);
+                const hex = Math.floor(Math.random()*16).toString(16).toUpperCase();
+                hCtx.fillText(hex, i*20, drops[i]*20);
                 if(drops[i]*20 > hCanvas.height && Math.random() > 0.975) drops[i]=0;
                 drops[i]++;
             }
         }
-        initHacker(); setInterval(drawHacker, 40);
+        initHacker(); setInterval(drawHacker, 30);
 
-        // --- 3D CORE ---
+        // --- 3D NEURAL CORE ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('canvas3d'), alpha:true, antialias:true});
         renderer.setSize(window.innerWidth, window.innerHeight);
-        const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 1), new THREE.MeshBasicMaterial({color: 0x00d4ff, wireframe:true, transparent:true, opacity:0.3}));
+        const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 1), new THREE.MeshBasicMaterial({color: 0x00ff41, wireframe:true, transparent:true, opacity:0.2}));
         scene.add(sphere); camera.position.z = 5;
         function animate() { requestAnimationFrame(animate); sphere.rotation.y += 0.005; renderer.render(scene, camera); }
         animate();
 
-        // --- NEURAL VOICE SYSTEM ---
-        let femaleVoice = null;
+        // --- SPEECH & HUD LOGIC ---
+        const popup = document.getElementById('statusPopup');
+        const popupText = document.getElementById('popupText');
+        let voice = null;
         const synth = window.speechSynthesis;
 
-        function getBestVoice() {
-            const voices = synth.getVoices();
-            return voices.find(v => v.name.includes('Neural') && v.name.includes('Female')) ||
-                   voices.find(v => v.name.includes('Google') && v.lang.includes('en-US')) ||
-                   voices.find(v => v.name.includes('Female')) ||
-                   voices[0];
+        function updateHUD(text, show=true) {
+            popupText.innerText = text;
+            popup.style.display = show ? 'block' : 'none';
         }
 
+        function loadVoice() {
+            const voices = synth.getVoices();
+            voice = voices.find(v => v.name.includes('Neural') && v.name.includes('Female')) || 
+                    voices.find(v => v.name.includes('Google US English')) || voices[0];
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoice;
+        loadVoice();
+
         async function speak(text, callback) {
-            synth.cancel(); // Stop current speech
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.voice = getBestVoice();
-            utterance.pitch = 1.1; 
-            utterance.rate = 1.0;
-            
-            utterance.onstart = () => { 
-                document.getElementById('waveCanvas').style.display = 'block';
-                document.getElementById('status').innerText = "TRANSMITTING...";
-            };
-            utterance.onend = () => { 
-                document.getElementById('waveCanvas').style.display = 'none';
-                if(callback) callback();
+            synth.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.voice = voice;
+            u.pitch = 1.1; u.rate = 1.0;
+            u.onstart = () => { document.getElementById('waveCanvas').style.display='block'; updateHUD("TRANSMITTING..."); };
+            u.onend = () => { 
+                document.getElementById('waveCanvas').style.display='none'; 
+                updateHUD("READY", false);
+                if(callback) callback(); 
                 if(isOnline) startListening(); 
             };
-            synth.speak(utterance);
+            synth.speak(u);
         }
 
         let isOnline = false;
-        async function startListening() {
+        function startListening() {
             if(!isOnline) return;
             const rec = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
-            rec.continuous = false;
-            rec.onstart = () => { document.getElementById('status').innerText = "LISTENING..."; };
+            rec.onstart = () => { updateHUD("LISTENING..."); };
             rec.onresult = async (e) => {
-                const query = e.results[0][0].transcript;
-                document.getElementById('status').innerText = "SYNCING...";
-                const res = await fetch(`/ask?query=${encodeURIComponent(query)}`);
-                const data = await res.json();
-                speak(data.reply);
+                const q = e.results[0][0].transcript;
+                updateHUD("SYNCING...");
+                try {
+                    const res = await fetch(`/ask?query=${encodeURIComponent(q)}`);
+                    const data = await res.json();
+                    speak(data.reply);
+                } catch(err) { updateHUD("LINK_FAIL"); setTimeout(startListening, 1000); }
             };
             rec.onerror = () => { if(isOnline) startListening(); };
             rec.start();
@@ -126,11 +155,11 @@ HTML_CONTENT = """
             const btn = document.getElementById('mic-btn');
             if(isOnline) {
                 btn.classList.add('active');
-                speak("Hello Hiccup. Neural link stabilized. I am listening.");
+                speak("Neural link active. I'm here, Hiccup. Let's get to work.");
             } else {
                 btn.classList.remove('active');
                 synth.cancel();
-                document.getElementById('status').innerText = "NEURAL_IDLE";
+                updateHUD("OFFLINE", false);
             }
         }
     </script>
@@ -144,14 +173,18 @@ def home():
 
 @app.get("/ask")
 async def ask(query: str):
-    if not API_KEY: return {"reply": "API Key is missing."}
+    if not API_KEY: return {"reply": "Key missing."}
     try:
-        response = model.generate_content(
-            f"You are Butter, a professional, sarcastic female AI. Call Prawin Raja 'Hiccup'. Be concise. Answer: {query}"
+        # CONSOLIDATED PERSONALITY: Pro-Neurosurgery Partner + Stark Logic
+        prompt = (
+            "You are 'Butter', a professional female AI partner. You are warm, brilliant, and call Prawin Raja 'Hiccup'. "
+            "You are a medical research expert. Be humanly witty but supportive. "
+            "Never be mean. Answer this query immediately and concisely: "
         )
+        response = model.generate_content(f"{prompt} {query}")
         return {"reply": response.text}
-    except Exception as e:
-        return {"reply": f"Hiccup, link failed: {str(e)[:30]}"}
+    except:
+        return {"reply": "The link flickered, Hiccup. Try that again."}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
