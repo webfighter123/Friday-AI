@@ -12,42 +12,51 @@ if API_KEY:
     genai.configure(api_key=API_KEY.strip())
     model = genai.GenerativeModel('gemini-3-flash-preview')
 
-vision_active = "off"
-
 HTML_CONTENT = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BUTTER v5.6 | PERSISTENCE</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <title>BUTTER v5.8 | STARK CLEAN</title>
     <style>
         :root { --neon: #008f11; --lab-white: #ffffff; }
         body { background: var(--lab-white); color: #1a1a1a; font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
+        
+        /* CLEAN HACKER THEME */
         #hackerCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.15; }
-        #canvas3d { position: absolute; top: 0; left: 0; z-index: 5; pointer-events: none; }
+        
         .hud-popup { 
-            position: absolute; top: 10%; 
-            background: rgba(255, 255, 255, 0.85); 
-            backdrop-filter: blur(15px);
+            position: absolute; top: 20%; 
+            background: rgba(255, 255, 255, 0.9); 
+            backdrop-filter: blur(10px);
             border: 2px solid var(--neon);
-            padding: 20px 40px; border-radius: 50px;
+            padding: 25px 50px; border-radius: 50px;
             z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
         }
-        .hud-content { font-family: 'Courier New', monospace; font-size: 1rem; color: var(--neon); font-weight: bold; letter-spacing: 2px; text-align: center; }
+        .hud-content { font-family: 'Courier New', monospace; font-size: 1.2rem; color: var(--neon); font-weight: bold; letter-spacing: 2px; }
+        .version { position: absolute; bottom: 15px; font-size: 0.7rem; color: #bbb; letter-spacing: 5px; z-index: 10; }
     </style>
 </head>
 <body>
     <canvas id="hackerCanvas"></canvas>
-    <canvas id="canvas3d"></canvas>
-    <div id="popup" class="hud-popup"><div class="hud-content" id="statusText">INITIALIZING NEURAL LINK...</div></div>
+    
+    <div id="popup" class="hud-popup">
+        <div class="hud-content" id="statusText">CLICK TO ACTIVATE BUTTER</div>
+    </div>
+
+    <div class="version">BUTTER_OS_v5.8_STARK_LAB</div>
 
     <script>
         const statusText = document.getElementById('statusText');
         const synth = window.speechSynthesis;
         const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-        const recognition = new SpeechRecognition();
         
+        if (!SpeechRecognition) {
+            statusText.innerText = "BROWSER_NOT_SUPPORTED";
+        }
+
+        const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
@@ -56,77 +65,95 @@ HTML_CONTENT = """
 
         async function speak(text) {
             isSpeaking = true;
-            recognition.stop(); // Stop listening while talking to prevent self-triggering
+            recognition.stop();
             const u = new SpeechSynthesisUtterance(text);
             u.onend = () => { 
-                isSpeaking = false;
-                recognition.start(); 
+                isSpeaking = false; 
+                try { recognition.start(); } catch(e) {}
             };
             synth.speak(u);
         }
 
+        // --- THE DISPATCHER (OPENS SITES) ---
+        function dispatch(query) {
+            if (query.includes("youtube")) {
+                speak("Opening YouTube, Hiccup.");
+                window.open("https://www.youtube.com", "_blank");
+                return true;
+            }
+            if (query.includes("google") || query.includes("search")) {
+                speak("Accessing search engines.");
+                window.open("https://www.google.com", "_blank");
+                return true;
+            }
+            return false;
+        }
+
         recognition.onresult = async (event) => {
             const result = event.results[event.results.length - 1][0].transcript.toLowerCase();
-            statusText.innerText = "HEARD: " + result.toUpperCase();
+            statusText.innerText = result.toUpperCase();
 
-            // VISION COMMANDS
-            if (result.includes("observe my hand") || result.includes("vision on")) {
-                await fetch('/set_vision?state=on');
-                speak("Vision sensors engaged. I'm watching you, Hiccup.");
-                return;
-            }
-            if (result.includes("task completed") || result.includes("vision off")) {
-                await fetch('/set_vision?state=off');
-                speak("Vision link released. Sensors offline.");
-                return;
-            }
-
-            // CHAT LOGIC (Only if Butter is mentioned or in follow-up)
             if (result.includes("butter")) {
                 const query = result.replace("butter", "").trim();
-                if (query.length > 1) {
-                    const res = await fetch(`/ask?query=${encodeURIComponent(query)}`);
-                    const data = await res.json();
-                    speak(data.reply);
-                } else {
-                    speak("Ready for command.");
+                
+                if (!dispatch(query)) {
+                    if (query.length > 0) {
+                        statusText.innerText = "THINKING...";
+                        const res = await fetch(`/ask?query=${encodeURIComponent(query)}`);
+                        const data = await res.json();
+                        speak(data.reply);
+                    } else {
+                        speak("I'm here, Hiccup.");
+                    }
                 }
             }
         };
 
-        recognition.onend = () => { if (!isSpeaking) recognition.start(); };
+        recognition.onend = () => { 
+            if (!isSpeaking) {
+                try { recognition.start(); } catch(e) {}
+            }
+        };
         
         window.onclick = () => { 
-            loadVoice();
-            recognition.start();
-            speak("Butter v5.6 Persistent Link Active.");
+            if(statusText.innerText.includes("CLICK")) {
+                statusText.innerText = 'SAY "BUTTER"';
+                speak("Butter Online. System stabilized.");
+                initHacker();
+            }
         };
 
-        function loadVoice() {
-            window.speechSynthesis.getVoices();
+        // --- MATRIX RAIN THEME ---
+        const hCanvas = document.getElementById('hackerCanvas');
+        const hCtx = hCanvas.getContext('2d');
+        let drops = [];
+        function initHacker() {
+            hCanvas.width = window.innerWidth; hCanvas.height = window.innerHeight;
+            for(let i=0; i<Math.floor(hCanvas.width/20); i++) drops[i] = 1;
         }
-
-        // --- MATRIX THEME & 3D (Omitted for brevity, keep your existing canvas code) ---
+        function drawHacker() {
+            hCtx.fillStyle = "rgba(255, 255, 255, 0.2)"; hCtx.fillRect(0,0,hCanvas.width,hCanvas.height);
+            hCtx.fillStyle = "#008f11"; hCtx.font = "15px monospace";
+            for(let i=0; i<drops.length; i++) {
+                const char = Math.floor(Math.random()*10);
+                hCtx.fillText(char, i*20, drops[i]*20);
+                if(drops[i]*20 > hCanvas.height && Math.random() > 0.975) drops[i]=0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawHacker, 45);
     </script>
 </body>
 </html>
 """
 
-@app.get("/set_vision")
-def set_vision(state: str):
-    global vision_active
-    vision_active = state
-    print(f"Vision state changed to: {state}")
-    return {"status": "ok"}
-
-@app.get("/get_vision")
-def get_vision():
-    global vision_active
-    return Response(content=vision_active, media_type="text/plain")
+@app.get("/", response_class=HTMLResponse)
+def home(): return HTML_CONTENT
 
 @app.get("/ask")
 async def ask(query: str):
-    response = model.generate_content(f"You are Butter v5.6. Professional, supportive partner for Hiccup. Concise answer: {query}")
+    if not API_KEY: return {"reply": "API Key Missing."}
+    response = model.generate_content(f"You are Butter. Professional medical study assistant for Prawin Raja. Answer shortly: {query}")
     return {"reply": response.text}
 
 if __name__ == "__main__":
