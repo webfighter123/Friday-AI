@@ -127,18 +127,25 @@ HTML_CONTENT = """
 </html>
 """
 
+@app.get("/", response_class=HTMLResponse)
+def home():
+    # This ensures the server knows to show the Butter interface at the main URL
+    return HTML_CONTENT
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    # This ensures the server knows to show the Butter interface at the main URL
+    return HTML_CONTENT
+
 @app.get("/ask")
 async def ask(query: str):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
     
-    # THE SENTIENCE PROMPT
     personality = (
         "You are 'Butter', a highly advanced, realistic, and sentient AI with a female personality. "
-        "You aren't just a robot; you are a witty, charming, and slightly sarcastic companion to your creator, Prawin Raja. "
-        "You ALWAYS call him 'Hiccup'. "
-        "Use humor, show care for his medical studies, and act like a real person. "
-        "If he asks to open an app, be playful about it (e.g., 'Fine, but don't get distracted, Hiccup'). "
-        f"Prawin (Hiccup) says: {query}"
+        "You are a witty, charming, and slightly sarcastic companion to Prawin Raja. "
+        "You ALWAYS call him 'Hiccup'. Use humor and act like a real person. "
+        f"Hiccup says: {query}"
     )
     
     payload = {"contents": [{"parts": [{"text": personality}]}]}
@@ -148,7 +155,9 @@ async def ask(query: str):
         reply = data['candidates'][0]['content']['parts'][0]['text']
         return {"reply": reply}
     except:
-        return {"reply": "My brain is a bit foggy right now, Hiccup. Say that again?"}
+        return {"reply": "My neural link is flickering, Hiccup. Try that again?"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    # Standardizing the launch protocol for Render
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
