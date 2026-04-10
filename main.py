@@ -12,14 +12,12 @@ if API_KEY:
     genai.configure(api_key=API_KEY.strip())
     model = genai.GenerativeModel('gemini-3-flash-preview')
 
-vision_active = "off"
-
 HTML_CONTENT = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BUTTER v5.6 | PERSISTENCE</title>
+    <title>BUTTER v5.7 | DISPATCHER</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { --neon: #008f11; --lab-white: #ffffff; }
@@ -40,7 +38,7 @@ HTML_CONTENT = """
 <body>
     <canvas id="hackerCanvas"></canvas>
     <canvas id="canvas3d"></canvas>
-    <div id="popup" class="hud-popup"><div class="hud-content" id="statusText">INITIALIZING NEURAL LINK...</div></div>
+    <div id="popup" class="hud-popup"><div class="hud-content" id="statusText">CLICK TO SYNC NEURAL LINK</div></div>
 
     <script>
         const statusText = document.getElementById('statusText');
@@ -50,83 +48,100 @@ HTML_CONTENT = """
         
         recognition.continuous = true;
         recognition.interimResults = false;
-        recognition.lang = 'en-US';
-
-        let isSpeaking = false;
 
         async function speak(text) {
-            isSpeaking = true;
-            recognition.stop(); // Stop listening while talking to prevent self-triggering
+            recognition.stop();
             const u = new SpeechSynthesisUtterance(text);
-            u.onend = () => { 
-                isSpeaking = false;
-                recognition.start(); 
-            };
+            u.onend = () => { recognition.start(); };
             synth.speak(u);
+        }
+
+        // --- THE DISPATCHER (OPENING APPS/SITES) ---
+        function dispatch(query) {
+            if (query.includes("youtube")) {
+                speak("Opening YouTube for your investigation, Hiccup.");
+                window.open("https://www.youtube.com", "_blank");
+                return true;
+            }
+            if (query.includes("google") || query.includes("search")) {
+                speak("Accessing global data streams.");
+                window.open("https://www.google.com", "_blank");
+                return true;
+            }
+            if (query.includes("notes") || query.includes("study")) {
+                speak("Opening your study environment.");
+                window.open("https://keep.google.com", "_blank");
+                return true;
+            }
+            return false;
         }
 
         recognition.onresult = async (event) => {
             const result = event.results[event.results.length - 1][0].transcript.toLowerCase();
-            statusText.innerText = "HEARD: " + result.toUpperCase();
+            statusText.innerText = "LINK_HEARD: " + result.toUpperCase();
 
-            // VISION COMMANDS
-            if (result.includes("observe my hand") || result.includes("vision on")) {
-                await fetch('/set_vision?state=on');
-                speak("Vision sensors engaged. I'm watching you, Hiccup.");
-                return;
-            }
-            if (result.includes("task completed") || result.includes("vision off")) {
-                await fetch('/set_vision?state=off');
-                speak("Vision link released. Sensors offline.");
-                return;
-            }
-
-            // CHAT LOGIC (Only if Butter is mentioned or in follow-up)
             if (result.includes("butter")) {
                 const query = result.replace("butter", "").trim();
-                if (query.length > 1) {
+                
+                // Check if it's an app command first
+                if (!dispatch(query)) {
+                    // If not an app command, ask the AI
                     const res = await fetch(`/ask?query=${encodeURIComponent(query)}`);
                     const data = await res.json();
                     speak(data.reply);
-                } else {
-                    speak("Ready for command.");
                 }
             }
         };
 
-        recognition.onend = () => { if (!isSpeaking) recognition.start(); };
+        recognition.onend = () => { recognition.start(); };
         
         window.onclick = () => { 
-            loadVoice();
             recognition.start();
-            speak("Butter v5.6 Persistent Link Active.");
+            speak("Butter v5.7 Dispatcher Online.");
+            initHacker(); // Start the background theme
+            animate();    // Start 3D
         };
 
-        function loadVoice() {
-            window.speechSynthesis.getVoices();
+        // --- MATRIX THEME ---
+        const hCanvas = document.getElementById('hackerCanvas');
+        const hCtx = hCanvas.getContext('2d');
+        let drops = [];
+        function initHacker() {
+            hCanvas.width = window.innerWidth; hCanvas.height = window.innerHeight;
+            for(let i=0; i<Math.floor(hCanvas.width/20); i++) drops[i] = 1;
         }
+        function drawHacker() {
+            hCtx.fillStyle = "rgba(255, 255, 255, 0.2)"; hCtx.fillRect(0,0,hCanvas.width,hCanvas.height);
+            hCtx.fillStyle = "#008f11"; hCtx.font = "15px monospace";
+            for(let i=0; i<drops.length; i++) {
+                const hex = Math.floor(Math.random()*16).toString(16).toUpperCase();
+                hCtx.fillText(hex, i*20, drops[i]*20);
+                if(drops[i]*20 > hCanvas.height && Math.random() > 0.985) drops[i]=0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawHacker, 40);
 
-        // --- MATRIX THEME & 3D (Omitted for brevity, keep your existing canvas code) ---
+        // --- 3D CORE ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('canvas3d'), alpha:true, antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 1), new THREE.MeshBasicMaterial({color: 0x008f11, wireframe:true, transparent:true, opacity:0.1}));
+        scene.add(sphere); camera.position.z = 5;
+        function animate() { requestAnimationFrame(animate); sphere.rotation.y += 0.005; renderer.render(scene, camera); }
     </script>
 </body>
 </html>
 """
 
-@app.get("/set_vision")
-def set_vision(state: str):
-    global vision_active
-    vision_active = state
-    print(f"Vision state changed to: {state}")
-    return {"status": "ok"}
-
-@app.get("/get_vision")
-def get_vision():
-    global vision_active
-    return Response(content=vision_active, media_type="text/plain")
+@app.get("/", response_class=HTMLResponse)
+def home(): return HTML_CONTENT
 
 @app.get("/ask")
 async def ask(query: str):
-    response = model.generate_content(f"You are Butter v5.6. Professional, supportive partner for Hiccup. Concise answer: {query}")
+    prompt = "You are Butter v5.7. A professional medical AI partner for Hiccup. Concise answer: "
+    response = model.generate_content(f"{prompt} {query}")
     return {"reply": response.text}
 
 if __name__ == "__main__":
