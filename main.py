@@ -9,7 +9,7 @@ app = FastAPI()
 # Securely get the API Key from Render's Environment Variables
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 HTML_CONTENT = """
 <!DOCTYPE html>
