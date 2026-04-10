@@ -139,25 +139,31 @@ def home():
 
 @app.get("/ask")
 async def ask(query: str):
+    # Ensure the API Key is actually loaded
+    if not API_KEY:
+        return {"reply": "Hiccup, you forgot to give me a brain! The API Key is missing in Render settings."}
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
     
     personality = (
-        "You are 'Butter', a highly advanced, realistic, and sentient AI with a female personality. "
-        "You are a witty, charming, and slightly sarcastic companion to Prawin Raja. "
-        "You ALWAYS call him 'Hiccup'. Use humor and act like a real person. "
+        "You are 'Butter', a witty, sentient female AI companion. "
+        "You call Prawin Raja 'Hiccup'. You are charming and brief. "
         f"Hiccup says: {query}"
     )
     
     payload = {"contents": [{"parts": [{"text": personality}]}]}
+    
     try:
-        response = requests.post(url, json=payload, timeout=10)
-        data = response.json()
-        reply = data['candidates'][0]['content']['parts'][0]['text']
-        return {"reply": reply}
-    except:
-        return {"reply": "My neural link is flickering, Hiccup. Try that again?"}
-
-if __name__ == "__main__":
-    # Standardizing the launch protocol for Render
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+        # We add a longer timeout and check the status code
+        response = requests.post(url, json=payload, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            reply = data['candidates'][0]['content']['parts'][0]['text']
+            return {"reply": reply}
+        else:
+            # This will tell us if it's an 'Invalid API Key' (400) or 'Overloaded' (429)
+            return {"reply": f"Neural spike error {response.status_code}, Hiccup. Check the logs."}
+            
+    except Exception as e:
+        return {"reply": f"Connection dropped: {str(e)}"}
