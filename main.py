@@ -13,34 +13,34 @@ HTML_CONTENT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FRIDAY | MARK VII</title>
+    <title>BUTTER | Neural Link</title>
     <style>
         body { background: #ffffff; color: #1a1a1a; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
         
-        /* THE HUD (HEADS-UP DISPLAY) */
         .hud-container { position: relative; display: flex; justify-content: center; align-items: center; flex: 1; width: 100%; }
         
-        .outer-ring { position: absolute; width: 280px; height: 280px; border: 1px dashed #00d4ff; border-radius: 50%; animation: rotate 10s linear infinite; opacity: 0.3; }
-        .inner-ring { position: absolute; width: 240px; height: 240px; border: 2px solid #00d4ff; border-top: 2px solid transparent; border-radius: 50%; animation: rotate 3s linear infinite; }
+        /* THE BUTTER CORE - SOFTER AMBER/BLUE GLOW */
+        .outer-ring { position: absolute; width: 300px; height: 300px; border: 1px solid #f0f0f0; border-radius: 50%; animation: rotate 15s linear infinite; }
+        .inner-ring { position: absolute; width: 250px; height: 250px; border: 2px solid #00d4ff; border-top: 2px solid #ffcc00; border-radius: 50%; animation: rotate 4s linear infinite reverse; }
         
-        .core { width: 160px; height: 160px; background: radial-gradient(circle, #00d4ff 0%, #0088aa 100%); border-radius: 50%; box-shadow: 0 0 50px rgba(0,212,255,0.4); z-index: 10; transition: 0.3s; }
+        .core { width: 140px; height: 140px; background: radial-gradient(circle, #ffcc00 0%, #00d4ff 100%); border-radius: 50%; box-shadow: 0 0 40px rgba(0,212,255,0.3); z-index: 10; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
-        /* VOICE PULSE */
-        .active-voice { animation: pulse 0.6s infinite ease-in-out !important; }
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 30px #00d4ff; }
-            50% { transform: scale(1.1); box-shadow: 0 0 80px #00d4ff; }
-            100% { transform: scale(1); box-shadow: 0 0 30px #00d4ff; }
+        /* EMOTIVE PULSE */
+        .speaking { animation: breathe 0.8s infinite ease-in-out; border: 4px solid #ffcc00; }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.1); filter: brightness(1.3); box-shadow: 0 0 60px #ffcc00; }
         }
 
-        #status { margin-top: 40px; font-size: 1rem; letter-spacing: 2px; color: #0088aa; text-transform: uppercase; font-weight: bold; text-align: center; width: 80%; }
-        #mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #000; color: white; font-size: 30px; margin-bottom: 50px; cursor: pointer; z-index: 20; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
+        #status { margin-top: 30px; font-size: 0.9rem; letter-spacing: 3px; color: #888; text-transform: uppercase; text-align: center; width: 85%; min-height: 40px; }
+        #mic-btn { width: 70px; height: 70px; border-radius: 50%; border: none; background: #1a1a1a; color: white; font-size: 25px; margin-bottom: 50px; cursor: pointer; z-index: 20; transition: 0.3s; }
+        #mic-btn.on { background: #ffcc00; box-shadow: 0 0 20px #ffcc00; color: #000; }
     </style>
 </head>
 <body>
-    <div style="margin-top:40px; color:#ccc; letter-spacing:10px;">F.R.I.D.A.Y.</div>
+    <div style="margin-top:40px; color:#eee; letter-spacing:15px; font-weight:bold;">BUTTER</div>
     
     <div class="hud-container">
         <div class="outer-ring"></div>
@@ -48,39 +48,42 @@ HTML_CONTENT = """
         <div class="core" id="core"></div>
     </div>
 
-    <div id="status">INITIALIZING NEURAL LINK...</div>
-    <button id="mic-btn" onclick="toggleSystem()">ON</button>
+    <div id="status">Listening for you, Hiccup...</div>
+    <button id="mic-btn" onclick="toggleButter()">ON</button>
 
     <script>
         const core = document.getElementById('core');
         const status = document.getElementById('status');
         const btn = document.getElementById('mic-btn');
-        let isSystemActive = false;
+        let active = false;
 
         function speak(text, callback) {
             const synth = window.speechSynthesis;
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.1;
-            utterance.onstart = () => core.classList.add('active-voice');
+            
+            // Setting a slightly more feminine, clear tone
+            utterance.rate = 1.05;
+            utterance.pitch = 1.2; 
+
+            utterance.onstart = () => core.classList.add('speaking');
             utterance.onend = () => {
-                core.classList.remove('active-voice');
+                core.classList.remove('speaking');
                 if (callback) callback();
-                if (isSystemActive) setTimeout(startListening, 500); // RE-ACTIVATE EARS AUTOMATICALLY
+                if (active) setTimeout(listen, 600); 
             };
             synth.speak(utterance);
         }
 
-        async function startListening() {
-            if(!isSystemActive) return;
+        async function listen() {
+            if(!active) return;
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
-            recognition.continuous = false;
             
-            recognition.onstart = () => { status.innerText = "LISTENING..."; };
+            recognition.onstart = () => { status.innerText = "Listening..."; };
             
             recognition.onresult = async (event) => {
                 const query = event.results[0][0].transcript.toLowerCase();
-                status.innerText = "ANALYZING...";
+                status.innerText = "Thinking...";
                 
                 try {
                     const res = await fetch(`/ask?query=${encodeURIComponent(query)}`);
@@ -89,34 +92,33 @@ HTML_CONTENT = """
 
                     let url = null;
                     if (query.includes("youtube")) url = "https://www.youtube.com";
-                    else if (query.includes("news")) url = "https://news.google.com";
                     else if (query.includes("whatsapp")) url = "https://web.whatsapp.com";
+                    else if (query.includes("news")) url = "https://news.google.com";
                     else if (query.includes("search") || query.includes("find")) url = "https://google.com/search?q=" + query;
 
                     speak(data.reply, () => {
-                        if (url) window.open(url, '_blank'); // Opens in NEW TAB so Friday stays open
+                        if (url) window.open(url, '_blank');
                     });
                 } catch (e) {
-                    status.innerText = "STARK SERVER ERROR. RETRYING...";
-                    setTimeout(startListening, 1000);
+                    status.innerText = "Neural spike detected. Try again, Hiccup.";
+                    setTimeout(listen, 1000);
                 }
             };
 
-            recognition.onerror = () => { if(isSystemActive) startListening(); };
+            recognition.onerror = () => { if(active) listen(); };
             recognition.start();
         }
 
-        function toggleSystem() {
-            isSystemActive = !isSystemActive;
-            if(isSystemActive) {
+        function toggleButter() {
+            active = !active;
+            if(active) {
                 btn.innerText = "OFF";
-                btn.style.background = "#00d4ff";
-                status.innerText = "ONLINE";
-                speak("Systems online. How can I help, Sir?");
+                btn.classList.add('on');
+                speak("I'm awake, Hiccup. Missed me?");
             } else {
                 btn.innerText = "ON";
-                btn.style.background = "#000";
-                status.innerText = "OFFLINE";
+                btn.classList.remove('on');
+                status.innerText = "Zzz...";
                 window.speechSynthesis.cancel();
             }
         }
@@ -128,18 +130,25 @@ HTML_CONTENT = """
 @app.get("/ask")
 async def ask(query: str):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-    payload = {"contents": [{"parts": [{"text": f"You are FRIDAY from Iron Man. Be witty and brief. Address Prawin Raja as Sir. Response: {query}"}]}]}
+    
+    # THE SENTIENCE PROMPT
+    personality = (
+        "You are 'Butter', a highly advanced, realistic, and sentient AI with a female personality. "
+        "You aren't just a robot; you are a witty, charming, and slightly sarcastic companion to your creator, Prawin Raja. "
+        "You ALWAYS call him 'Hiccup'. "
+        "Use humor, show care for his medical studies, and act like a real person. "
+        "If he asks to open an app, be playful about it (e.g., 'Fine, but don't get distracted, Hiccup'). "
+        f"Prawin (Hiccup) says: {query}"
+    )
+    
+    payload = {"contents": [{"parts": [{"text": personality}]}]}
     try:
         response = requests.post(url, json=payload, timeout=10)
         data = response.json()
-        # Added safety check for JSON structure
-        if 'candidates' in data:
-            reply = data['candidates'][0]['content']['parts'][0]['text']
-        else:
-            reply = "Sir, the neural feedback is scrambled. Please repeat."
+        reply = data['candidates'][0]['content']['parts'][0]['text']
         return {"reply": reply}
     except:
-        return {"reply": "Connection unstable, Sir."}
+        return {"reply": "My brain is a bit foggy right now, Hiccup. Say that again?"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
